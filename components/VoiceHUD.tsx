@@ -674,29 +674,16 @@ export default function VoiceHUD() {
     if (file) analyzeTargetAudio(file);
   }, [analyzeTargetAudio]);
 
-  const handleTouchPointerAction = useCallback((
-    e: React.PointerEvent,
-    action: () => void,
-  ) => {
-    if (e.pointerType === 'mouse') return;
-    e.preventDefault();
-    e.stopPropagation();
-    action();
-  }, []);
-
   // ── Color picker close on outside tap/click ───────────────────────────
 
   useEffect(() => {
     if (!openPicker) return;
-    // Defer adding the listener by one frame so the tap that opened the picker
-    // doesn't immediately close it on touch devices (where click fires synchronously).
+    // Bubble phase (no capture) so that e.stopPropagation() on the color button
+    // prevents this listener from firing when the button itself is tapped.
     const close = () => setOpenPicker(null);
-    const id = setTimeout(() => {
-      window.addEventListener('click', close, { capture: true });
-    }, 0);
+    window.addEventListener('click', close);
     return () => {
-      clearTimeout(id);
-      window.removeEventListener('click', close, { capture: true });
+      window.removeEventListener('click', close);
     };
   }, [openPicker]);
 
@@ -719,7 +706,6 @@ export default function VoiceHUD() {
 
         {/* Start/Stop button */}
         <button
-          onPointerUp={(e) => handleTouchPointerAction(e, isRunning ? stopAudio : startAudio)}
           onClick={isRunning ? stopAudio : startAudio}
           className={`w-10 h-10 rounded-full flex items-center justify-center transition-colors cursor-pointer touch-manipulation ${
             isRunning
@@ -738,9 +724,6 @@ export default function VoiceHUD() {
           {(['current', 'target', 'match'] as const).map((key) => (
             <div key={key} className="flex flex-col items-center gap-1 relative">
               <button
-                onPointerUp={(e) => handleTouchPointerAction(e, () => {
-                  setOpenPicker(openPicker === key ? null : key);
-                })}
                 onClick={(e) => {
                   e.stopPropagation();
                   setOpenPicker(openPicker === key ? null : key);
@@ -757,7 +740,6 @@ export default function VoiceHUD() {
               {openPicker === key && (
                 <div
                   className="absolute left-10 top-0 z-40 bg-zinc-900 border border-white/10 rounded-lg p-2 flex flex-col gap-1 shadow-xl"
-                  onPointerUp={(e) => e.stopPropagation()}
                   onClick={(e) => e.stopPropagation()}
                 >
                   <span className="text-white/40 text-[9px] font-mono mb-1">
@@ -767,10 +749,6 @@ export default function VoiceHUD() {
                     {COLOR_PALETTES[key].map((c) => (
                       <button
                         key={c}
-                        onPointerUp={(e) => handleTouchPointerAction(e, () => {
-                          setColors(prev => ({ ...prev, [key]: c }));
-                          setOpenPicker(null);
-                        })}
                         onClick={() => {
                           setColors(prev => ({ ...prev, [key]: c }));
                           setOpenPicker(null);
